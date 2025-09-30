@@ -48,7 +48,7 @@ text
 ### Step-by-Step Setup
 
 1. **Clone Repository**
-```bash
+
 git clone https://github.com/your-username/ALPR-TPS.git
 cd ALPR-TPS
 Create Virtual Environment (Recommended)
