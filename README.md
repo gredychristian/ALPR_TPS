@@ -89,20 +89,19 @@ Place test images in images/ folder
 ## 📁 Project Structure
 ```
 ALPR-TPS/
-├── alpr_live.py          # 🎥 Main live detection application
-├── main.py               # 🖼️ Single image processor
-├── config.py             # ⚙️ Configuration settings
-├── requirements.txt      # 📦 Dependencies
 ├── models/
 │   └── plate_detection/
-│       └── best.pt      # 🔧 YOLO model (add your own)
-├── utils/
+│       └── best.pt       # 🔧 YOLO model (add your own)
+├── output/               # 💾 Results & logs
+│   └── log.csv           # 📝 Auto-generated capture log
+├── utils/                # 🔴 Main function of YOLO and EasyOCR algorithm
 │   ├── plate_detector.py # 🎯 YOLO plate detection
 │   └── ocr_reader.py     # 🔤 EasyOCR text recognition
-├── images/               # 📸 Test images folder
-├── output/               # 💾 Results & logs
-│   └── log.csv          # 📝 Auto-generated capture log
-└── README.md            # 📖 This file
+├── alpr_live.py          # 🎥 Main live detection application
+├── config.py             # ⚙️ Configuration settings
+├── main.py               # 🖼️ Single image processor
+├── README.md             # 📖 This file
+└── requirements.txt      # 📦 Dependencies
 ```
 
 ## Configuration
