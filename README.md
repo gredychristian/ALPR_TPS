@@ -1,2 +1,0 @@
-# ALPR_TPS
-ALPR TPS
