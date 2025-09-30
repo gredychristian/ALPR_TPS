@@ -1,4 +1,4 @@
-# 🚀 ALPR-TPS: Automatic License Plate Recognition for Terminal Petikemas Surabaya
+# 🚀 ALPR-TPS: Automatic License Plate Recognition ID
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.10-orange.svg)
