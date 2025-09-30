@@ -28,10 +28,7 @@
 - **Resizable UI**: Flexible window with maintained aspect ratios
 
 ## 🔄 Workflow
-Live Camera Feed → YOLO Plate Detection → Smart Text Selection →
-EasyOCR Processing → Result Display & Logging
-
-text
+Live Camera Feed → YOLO Plate Detection → Smart Text Selection → EasyOCR Processing → Result Display & Logging
 
 ### 🧠 Algorithm Innovations:
 1. **Smart Text Selection** - Height clustering to distinguish main plate vs secondary text
@@ -69,30 +66,28 @@ pip install -r requirements.txt
 
 4. **Download Model Files**
 Place your YOLO model in models/plate_detection/best.pt
-
 EasyOCR models will auto-download on first run
 
 ## 🚀 Usage
-Live Detection Mode
+#### Live Detection Mode
 ```
+# Run on terminal where alpr.py is exist
 python alpr_live.py
 ```
 
-Controls:
-
+#### Controls
 C - Capture and recognize current plate
-
 ESC - Exit application
-
 Window X - Close program
 
-Single Image Processing
-bash
+#### Single Image Processing
+```
 python main.py
 Place test images in images/ folder
+```
 
-📁 Project Structure
-text
+## 📁 Project Structure
+```
 ALPR-TPS/
 ├── alpr_live.py          # 🎥 Main live detection application
 ├── main.py               # 🖼️ Single image processor
@@ -108,47 +103,47 @@ ALPR-TPS/
 ├── output/               # 💾 Results & logs
 │   └── log.csv          # 📝 Auto-generated capture log
 └── README.md            # 📖 This file
-⚙️ Configuration
-Edit config.py to customize:
+```
 
-python
+## ⚙️ Configuration
+Edit config.py to customize:
+```
 DETECTION_CONFIDENCE_THRESHOLD = 0.5    # Detection sensitivity
 OCR_CONFIDENCE_THRESHOLD = 0.6          # OCR accuracy threshold
 MIN_PLATE_TEXT_LENGTH = 3               # Minimum characters for valid plate
-📊 Results
-Real-time Performance: 15-30 FPS (depending on hardware)
+```
 
-Accuracy: >85% on Indonesian plates
-
-Output: CSV logs with timestamps, plate numbers, and confidence scores
+## 📊 Results
+- Real-time Performance: 15-30 FPS (depending on hardware)
+- Accuracy: >85% on Indonesian plates
+- Output: CSV logs with timestamps, plate numbers, and confidence scores
 
 Sample CSV Output:
-
-csv
+```
 timestamp,license_plate,confidence,filename
 2024-09-30 14:25:30,B1234XYZ,0.85,captured_plate_2024-09-30_14-25-30.jpg
-🤝 Contributing
+```
+
+## 🤝 Contributing
 This project was developed for PT Terminal Petikemas Surabaya as part of internship and academic research.
 
 Potential Research Extensions:
-Multi-frame verification systems
+- Multi-frame verification systems
+- Indonesian plate format classification
+- Adverse condition handling algorithms
 
-Indonesian plate format classification
-
-Adverse condition handling algorithms
-
-📄 License
+## 📄 License
 This project is for academic and research purposes.
 
-👨‍💻 Developer
+## 👨‍💻 Developer
 Your Name - PT Terminal Petikemas Surabaya Intern
+Version: 1.0.0 | Last Update: September 2025
 
-Version: 1.0.0 | Last Update: September 2024
-
-🎯 Quick Start
-bash
+## 🎯 Quick Start
+```
 # Clone, install, and run!
 git clone https://github.com/your-username/ALPR-TPS.git
 cd ALPR-TPS
 pip install -r requirements.txt
 python alpr_live.py
+```
