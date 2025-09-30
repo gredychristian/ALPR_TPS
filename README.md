@@ -38,7 +38,7 @@ Live Camera Feed → YOLO Plate Detection → Smart Text Selection → EasyOCR P
 ## 💻 Installation
 
 ### Prerequisites
-- Python 3.11 or higher
+- Python 3.11.9
 - Webcam or camera source
 - 4GB+ RAM recommended
 
@@ -76,9 +76,9 @@ python alpr_live.py
 ```
 
 #### Controls
-C - Capture and recognize current plate
-ESC - Exit application
-Window X - Close program
+- C - Capture and recognize current plate
+- ESC - Exit application
+- Window X - Close program
 
 #### Single Image Processing
 ```
