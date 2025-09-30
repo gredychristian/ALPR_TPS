@@ -48,31 +48,36 @@ text
 ### Step-by-Step Setup
 
 1. **Clone Repository**
-
+```
 git clone https://github.com/your-username/ALPR-TPS.git
 cd ALPR-TPS
-Create Virtual Environment (Recommended)
+```
 
-bash
+2. **Create Virtual Environment (Recommended)**
+```
 python -m venv venv
 # Windows:
 venv\Scripts\activate
 # Mac/Linux:
 source venv/bin/activate
-Install Dependencies
+```
 
-bash
+3. **Install Dependencies**
+```
 pip install -r requirements.txt
-Download Model Files
+```
 
+4. **Download Model Files**
 Place your YOLO model in models/plate_detection/best.pt
 
 EasyOCR models will auto-download on first run
 
-🚀 Usage
+## 🚀 Usage
 Live Detection Mode
-bash
+```
 python alpr_live.py
+```
+
 Controls:
 
 C - Capture and recognize current plate
