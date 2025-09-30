@@ -135,7 +135,9 @@ Potential Research Extensions:
 This project is for academic and research purposes.
 
 ## 👨‍💻 Developer
-Your Name - PT Terminal Petikemas Surabaya Intern
+Gredy Christian Hendrawan Putra
+Informatics Student at UPN Veteran Jawa Timur
+Magenta 2025 B2 IT Intern at PT TPS
 Version: 1.0.0 | Last Update: September 2025
 
 ## 🎯 Quick Start
