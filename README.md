@@ -13,7 +13,7 @@
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Project Structure](#-project-structure)
-- [Configuration](#-configuration)
+- [Configuration](#configuration)
 - [Results](#-results)
 - [Contributing](#-contributing)
 
@@ -105,7 +105,7 @@ ALPR-TPS/
 └── README.md            # 📖 This file
 ```
 
-## ⚙️ Configuration
+## Configuration
 Edit config.py to customize:
 ```
 DETECTION_CONFIDENCE_THRESHOLD = 0.5    # Detection sensitivity
