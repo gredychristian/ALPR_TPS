@@ -2,12 +2,12 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.10-orange.svg)
-![YOLO](https://img.shields.io/badge/YOLOv8-ULTRAlytics-green.svg)
-![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen.svg)
+![YOLO](https://img.shields.io/badge/YOLOv8-Ultralytics-purple.svg)
+![Version](https://img.shields.io/badge/Version-v1.0.0-brightgreen.svg)
 
 **Real-time License Plate Recognition system** built for PT Terminal Petikemas Surabaya. Detects and recognizes Indonesian license plates with high accuracy using YOLOv8 and EasyOCR.
 
-## 📋 Table of Contents
+## Table of Contents
 - [Features](#-features)
 - [Workflow](#-workflow)
 - [Installation](#-installation)
@@ -17,7 +17,7 @@
 - [Results](#-results)
 - [Contributing](#-contributing)
 
-## 🎯 Features
+## Features
 
 - **Real-time Detection**: Live video processing with bounding boxes
 - **Smart OCR**: Intelligent text selection to filter out noise
@@ -27,15 +27,15 @@
 - **GPU/CPU Support**: Automatic device detection for optimal performance
 - **Resizable UI**: Flexible window with maintained aspect ratios
 
-## 🔄 Workflow
+## Workflow
 Live Camera Feed → YOLO Plate Detection → Smart Text Selection → EasyOCR Processing → Result Display & Logging
 
-### 🧠 Algorithm Innovations:
+### Algorithm Innovations:
 1. **Smart Text Selection** - Height clustering to distinguish main plate vs secondary text
 2. **Dynamic Confidence Adjustment** - Context-aware scoring system
 3. **Largest Plate Filtering** - Area-based selection in multi-vehicle environments
 
-## 💻 Installation
+## Installation
 
 ### Prerequisites
 - Python 3.11.9
@@ -68,7 +68,7 @@ pip install -r requirements.txt
 Place your YOLO model in models/plate_detection/best.pt
 EasyOCR models will auto-download on first run
 
-## 🚀 Usage
+## Usage
 #### Live Detection Mode
 ```
 # Run on terminal where alpr.py is exist
@@ -86,7 +86,7 @@ python main.py
 Place test images in images/ folder
 ```
 
-## 📁 Project Structure
+## Project Structure
 ```
 ALPR-TPS/
 ├── models/
@@ -112,7 +112,7 @@ OCR_CONFIDENCE_THRESHOLD = 0.6          # OCR accuracy threshold
 MIN_PLATE_TEXT_LENGTH = 3               # Minimum characters for valid plate
 ```
 
-## 📊 Results
+## Results
 - Real-time Performance: 15-30 FPS (depending on hardware)
 - Accuracy: >85% on Indonesian plates
 - Output: CSV logs with timestamps, plate numbers, and confidence scores
@@ -123,7 +123,7 @@ timestamp,license_plate,confidence,filename
 2024-09-30 14:25:30,B1234XYZ,0.85,captured_plate_2024-09-30_14-25-30.jpg
 ```
 
-## 🤝 Contributing
+## Contributing
 This project was developed for PT Terminal Petikemas Surabaya as part of internship and academic research.
 
 Potential Research Extensions:
@@ -131,16 +131,16 @@ Potential Research Extensions:
 - Indonesian plate format classification
 - Adverse condition handling algorithms
 
-## 📄 License
+## License
 This project is for academic and research purposes.
 
-## 👨‍💻 Developer
+## Developer
 Gredy Christian Hendrawan Putra
 Informatics Student at UPN Veteran Jawa Timur
 Magenta 2025 B2 IT Intern at PT TPS
 Version: 1.0.0 | Last Update: September 2025
 
-## 🎯 Quick Start
+## Quick Start
 ```
 # Clone, install, and run!
 git clone https://github.com/your-username/ALPR-TPS.git
