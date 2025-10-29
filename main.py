@@ -1,532 +1,293 @@
-# main.py
-import cv2
 import os
-import sys
+import json
 import time
+import cv2
+import warnings
+from datetime import datetime
+from modules.plat_detector import PlatDetector
+from modules.char_detector import CharDetector
+from modules.preprocessing import Preprocessor
 
-# Add utils to path
-sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
-
-from utils.plate_detector import PlateDetector
-from utils.ocr_reader import OCRReader
-import config
+# Suppress warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class ALPRSystem:
     def __init__(self):
-        """
-        Initialize ALPR System
-        """
-        print("🚀 Initializing ALPR System...")
+        # Path configuration
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.models_dir = os.path.join(self.base_dir, "models")
+        self.data_dir = os.path.join(self.base_dir, "data")
+
+        # Model paths
+        self.plat_model_path = os.path.join(self.models_dir, "plat.pt")
+        self.char_model_path = os.path.join(self.models_dir, "char.pt")
+
+        # Data paths
+        self.input_dir = os.path.join(self.data_dir, "input")
+        self.output_dir = os.path.join(self.data_dir, "output")
+        self.json_dir = os.path.join(self.data_dir, "json")
+
+        # Create directories if not exist
+        os.makedirs(self.input_dir, exist_ok=True)
+        os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(self.json_dir, exist_ok=True)
 
         # Initialize components
-        self.plate_detector = PlateDetector(config.PLATE_DETECTOR_MODEL)
-        self.ocr_reader = OCRReader()
+        print("ALPR TPS 2025")
+        self.plat_detector = PlatDetector(self.plat_model_path)
+        self.char_detector = CharDetector(self.char_model_path, conf_threshold=0.2)
+        self.preprocessor = Preprocessor()
+        # print("✅ Models loaded successfully")
 
-        print("✅ ALPR System Ready!")
+        # JSON file
+        self.json_file = os.path.join(self.json_dir, "vehicle_log.json")
 
-    def _bboxes_similar(self, bbox1, bbox2, threshold=0.7):
-        """
-        Check if two bounding boxes are similar based on IoU (Intersection over Union)
-        """
-        x1_1, y1_1, x2_1, y2_1 = bbox1
-        x1_2, y1_2, x2_2, y2_2 = bbox2
+        # Initialize JSON file if not exists or corrupt
+        self._initialize_json_file()
 
-        # Calculate intersection area
-        xi1 = max(x1_1, x1_2)
-        yi1 = max(y1_1, y1_2)
-        xi2 = min(x2_1, x2_2)
-        yi2 = min(y2_1, y2_2)
+        # Initialize counter from existing data
+        self.counter = self._get_next_id()
 
-        inter_area = max(0, xi2 - xi1) * max(0, yi2 - yi1)
+    def _initialize_json_file(self):
+        """Initialize JSON file or fix if corrupt"""
+        try:
+            # Cek jika file exists dan valid
+            if os.path.exists(self.json_file):
+                with open(self.json_file, "r") as f:
+                    json.load(f)  # Coba parse JSON
+                # print("✅ JSON file is valid")
+            else:
+                # Buat file baru jika tidak exists
+                with open(self.json_file, "w") as f:
+                    json.dump([], f)
+                # print("✅ Created new JSON file")
 
-        # Calculate union area
-        area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
-        area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
-        union_area = area1 + area2 - inter_area
+        except json.JSONDecodeError:
+            # Jika JSON corrupt, buat baru
+            # print("⚠️  JSON file corrupt, creating new one...")
+            with open(self.json_file, "w") as f:
+                json.dump([], f)
+            # print("✅ Fixed JSON file")
 
-        # Calculate IoU
-        iou = inter_area / union_area if union_area > 0 else 0
+    def _get_next_id(self):
+        """Get next ID from existing JSON data"""
+        try:
+            with open(self.json_file, "r") as f:
+                data = json.load(f)
 
-        return iou >= threshold
+            if not data:
+                return 1  # Start from 1 if no data
+            else:
+                # Cari ID tertinggi
+                max_id = max(item["id"] for item in data)
+                return max_id + 1
 
-    def draw_modern_bounding_boxes(self, image, plates):
-        """
-        Draw modern bounding boxes with labels (similar to alpr_live.py)
-        """
-        result_image = image.copy()
+        except Exception as e:
+            # print(f"❌ Error reading JSON for ID: {e}")
+            return 1  # Fallback ke 1
 
-        for plate in plates:
-            x1, y1, x2, y2 = plate["bbox"]
-            conf = plate["confidence"]
+    def process_image(self, image_path):
+        """Process single image"""
+        try:
+            # print(f"🚗 Processing image: {image_path}")
 
-            # Pastikan coordinates valid untuk drawing
-            if x2 > x1 and y2 > y1 and (x2 - x1) > 5 and (y2 - y1) > 5:
-                try:
-                    # 🎨 COLOR SETTINGS
-                    color = (0, 210, 0)  # 🟢 HIJAU TOSCA
-                    box_thickness = 3  # 📏 Medium thickness
-                    font_scale = 0.6  # 🔤 Normal font size
-                    text_thickness = 2  # 📝 Medium text thickness
-                    bg_color = (0, 210, 0)  # 🟢 BACKGROUND SAMA
-                    text_color = (255, 255, 255)  # ⚪ White text
+            # Load image
+            image = cv2.imread(image_path)
+            if image is None:
+                # print(f"❌ Gagal load gambar: {image_path}")
+                return
 
-                    # 1. Draw main bounding box
-                    cv2.rectangle(
-                        result_image,
-                        (x1, y1),
-                        (x2, y2),
-                        color,
-                        box_thickness,
+            # print(f"📊 Original image - Shape: {image.shape}, dtype: {image.dtype}")
+
+            # Simpan image asli untuk output (tanpa konversi RGB)
+            original_image_bgr = image.copy()
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Hanya untuk processing
+
+            # Generate ID (auto-increment dari JSON)
+            vehicle_id = self.counter
+            self.counter += 1
+
+            # Detect plate
+            cropped_plate, plate_bbox = self.plat_detector.detect(image_rgb)
+
+            # Initialize status flags
+            plat_detected = False
+            char_detected = False
+            plate_text = ""
+            output_image = original_image_bgr.copy()  # Gunakan BGR untuk output
+
+            if cropped_plate is not None:
+                plat_detected = True  # ✅ Plat terdeteksi
+                # print(f"✅ Plat terdeteksi - Crop shape: {cropped_plate.shape}")
+
+                # Preprocess plate image
+                processed_plate = self.preprocessor.process(cropped_plate)
+
+                # Detect characters
+                characters = self.char_detector.detect(processed_plate)
+                plate_text = self.char_detector.get_plate_text(characters)
+
+                if len(characters) > 0:
+                    char_detected = True  # ✅ Karakter terdeteksi
+                    # print(f"✅ Characters detected: {len(characters)}")
+                else:
+                    # print(f"❌ No characters detected")
+                    pass
+
+                    # Draw detections pada output image (masih BGR)
+                output_image = self.plat_detector.draw_detection(
+                    output_image, plate_bbox
+                )
+
+                # Draw characters pada processed plate (untuk output)
+                if len(characters) > 0:
+                    char_image = self.char_detector.draw_detections(
+                        processed_plate, characters
                     )
+                else:
+                    char_image = processed_plate
+            else:
+                # print(f"❌ Plat tidak terdeteksi")
+                # plat_detected tetap False
+                # Jika plat tidak terdeteksi, tetap preprocessing gambar utama
+                processed_plate = self.preprocessor.process(image_rgb)
+                char_image = processed_plate
 
-                    # 2. Prepare label text
-                    label_text = f"License Plate {conf:.2f}"
+            # Save output images
+            input_filename = os.path.basename(image_path)
+            name, ext = os.path.splitext(input_filename)
 
-                    # 3. Calculate text size
-                    (text_width, text_height), baseline = cv2.getTextSize(
-                        label_text,
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        font_scale,
-                        text_thickness,
-                    )
+            output_path = os.path.join(self.output_dir, f"{vehicle_id}_processed{ext}")
+            plate_path = os.path.join(self.output_dir, f"{vehicle_id}_plate{ext}")
 
-                    # 4. Calculate background rectangle coordinates
-                    bg_x1 = x1
-                    bg_y1 = max(0, y1 - text_height - 10)  # 10px margin atas
-                    bg_x2 = x1 + text_width + 10  # 10px padding kanan-kiri
-                    bg_y2 = y1
+            # TIDAK PERLU KONVERSI - output_image sudah BGR
+            cv2.imwrite(output_path, output_image)
 
-                    # Pastikan background tidak keluar dari frame
-                    if bg_y1 < 0:
-                        bg_y1 = y1
-                        bg_y2 = y1 + text_height + 10
+            # Handle char_image format untuk saving
+            if len(char_image.shape) == 2:  # Grayscale
+                plate_image_bgr = cv2.cvtColor(char_image, cv2.COLOR_GRAY2BGR)
+                cv2.imwrite(plate_path, plate_image_bgr)
+            else:  # RGB
+                plate_image_bgr = cv2.cvtColor(char_image, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(plate_path, plate_image_bgr)
 
-                    # 5. Draw filled background
-                    cv2.rectangle(
-                        result_image,
-                        (bg_x1, bg_y1),
-                        (bg_x2, bg_y2),
-                        bg_color,
-                        -1,  # Filled rectangle
-                    )
+            # Save to JSON dengan status baru
+            self.save_to_json(
+                vehicle_id,
+                plate_text,
+                image_path,
+                output_path,
+                plate_path,
+                plat_detected,
+                char_detected,  # ⭐ TAMBAH PARAMETER INI
+            )
 
-                    # 6. Calculate text position
-                    text_x = bg_x1 + 5  # 5px padding dari kiri background
-                    text_y = bg_y2 - 5  # 5px dari bawah background
+            # Tampilkan status
+            status_msg = (
+                "FULL SUCCESS"
+                if (plat_detected and char_detected)
+                else "PLAT ONLY" if plat_detected else "FAILED"
+            )
+            print(
+                # f"✅ Kendaraan {vehicle_id} diproses - Status: {status_msg} - Plat: '{plate_text if plate_text else 'Tidak Terbaca'}'"
+            )
 
-                    # Jika background di atas, adjust text position
-                    if bg_y1 < y1:
-                        text_y = bg_y2 - 5
-                    else:
-                        text_y = bg_y1 + text_height + 5
+            # Hapus file input setelah sukses
+            os.remove(image_path)
+            # try:
+            #     print(f"🗑️  Input file deleted: {os.path.basename(image_path)}")
+            # except Exception as e:
+            #     print(f"❌ Gagal hapus file input: {str(e)}")
 
-                    # 7. Draw white text
-                    cv2.putText(
-                        result_image,
-                        label_text,
-                        (text_x, text_y),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        font_scale,
-                        text_color,
-                        text_thickness,
-                    )
+        except Exception as e:
+            # print(f"❌ Error processing {image_path}: {str(e)}")
+            import traceback
 
-                    # 8. Draw OCR result below bounding box (kiri bawah)
-                    plate_text = plate.get("ocr_text", "")
-                    if plate_text:
-                        # Background untuk OCR result
-                        ocr_bg_x1 = x1
-                        ocr_bg_y1 = y2 + 5
-                        ocr_bg_x2 = x1 + 150  # Fixed width untuk OCR text
-                        ocr_bg_y2 = y2 + 35
+            traceback.print_exc()
 
-                        cv2.rectangle(
-                            result_image,
-                            (ocr_bg_x1, ocr_bg_y1),
-                            (ocr_bg_x2, ocr_bg_y2),
-                            (0, 0, 0),  # Black background
-                            -1,
-                        )
 
-                        # OCR text
-                        cv2.putText(
-                            result_image,
-                            f"Plate: {plate_text}",
-                            (x1 + 5, y2 + 25),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
-                            (255, 255, 255),  # White text
-                            1,
-                        )
+    def save_to_json(
+        self,
+        vehicle_id,
+        plate_text,
+        input_path,
+        output_path,
+        plate_path,
+        plat_detected,
+        char_detected,
+    ):
+        """Save data to JSON log"""
+        try:
+            # Baca data existing
+            with open(self.json_file, "r") as f:
+                data = json.load(f)
 
-                except Exception as e:
-                    print(f"⚠️  Error drawing bounding box: {e}")
-                    # Fallback: simple rectangle
-                    cv2.rectangle(
-                        result_image,
-                        (x1, y1),
-                        (x2, y2),
-                        (0, 255, 0),
-                        2,
-                    )
+            # Gunakan path relative
+            relative_output = os.path.relpath(output_path, self.base_dir)
+            relative_plate = os.path.relpath(plate_path, self.base_dir)
 
-        return result_image
-
-    def process_image(self, image_path, save_output=True):
-        """
-        Process single image for license plate recognition
-        """
-        print(f"📷 Processing image: {image_path}")
-
-        # Read image
-        image = cv2.imread(image_path)
-        if image is None:
-            print(f"❌ Error loading image: {image_path}")
-            return None
-
-        # Detect license plates
-        plates = self.plate_detector.detect_plates(
-            image, config.DETECTION_CONFIDENCE_THRESHOLD
-        )
-
-        print(f"🔍 Found {len(plates)} license plate(s)")
-
-        results = []
-
-        # Process each detected plate
-        for i, plate in enumerate(plates):
-            plate_img = plate["image"]
-            bbox = plate["bbox"]
-            det_conf = plate["confidence"]
-
-            # OCR on plate
-            plate_text, ocr_confidence = self.ocr_reader.read_text(plate_img)
-
-            # Add OCR result to plate data for drawing
-            plate["ocr_text"] = plate_text
-            plate["ocr_confidence"] = ocr_confidence
-
-            result = {
-                "plate_id": i + 1,
-                "text": plate_text,
-                "detection_confidence": det_conf,
-                "ocr_confidence": ocr_confidence,
-                "bbox": bbox,
+            vehicle_data = {
+                "id": vehicle_id,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "plate_number": plate_text,
+                "output_image": relative_output,
+                "plate_image": relative_plate,
+                "plat_detected": plat_detected,
+                "char_detected": char_detected,
+                "status": (
+                    "success"
+                    if (plat_detected and char_detected)
+                    else "partial" if plat_detected else "failed"
+                ),
             }
 
-            results.append(result)
+            data.append(vehicle_data)
 
-            print(
-                f"   🚗 Plate {i+1}: '{plate_text}' "
-                f"(Det: {det_conf:.2f}, OCR: {ocr_confidence:.2f})"
-            )
+            # Tulis ulang dengan indent
+            with open(self.json_file, "w") as f:
+                json.dump(data, f, indent=2)
 
-            # Save individual plate image
-            if save_output:
-                plate_filename = f"plate_{i+1}_{os.path.basename(image_path)}"
-                plate_path = os.path.join(config.OUTPUT_DIR, plate_filename)
-                cv2.imwrite(plate_path, plate_img)
-                print(f"   💾 Saved plate image: {plate_filename}")
+            # print(f"✅ Saved to JSON: ID {vehicle_id}")
 
-        # Draw modern bounding boxes on original image
-        if save_output and plates:
-            output_image = self.draw_modern_bounding_boxes(image, plates)
+            # TAMBAHKAN INI UNTUK PRINT JSON DI TERMINAL
+            # print("📄 JSON Data:")
+            print(json.dumps(vehicle_data, indent=2))
 
-            output_path = os.path.join(
-                config.OUTPUT_DIR, f"result_{os.path.basename(image_path)}"
-            )
-            cv2.imwrite(output_path, output_image)
-            print(f"💾 Saved result image: {output_path}")
+        except Exception as e:
+            # print(f"❌ Error saving to JSON: {str(e)}")
+            # Coba buat JSON baru jika corrupt
+            self._initialize_json_file()
 
-        return results
+    def monitor_input_folder(self):
+        """Monitor input folder for new images"""
+        # print("🚀 ALPR System Started...")
+        # print(f"📁 Monitoring folder: {self.input_dir}")
+        # print(f"📊 Next ID: {self.counter}")
+        print("ALPR Running...")
+        print("Press Ctrl+C to stop")
 
-    def process_video(self, video_path, output_path=None, max_frames=None):
-        """
-        Process video for license plate recognition
-        """
-        print(f"🎥 Processing video: {video_path}")
+        processed_files = set()
 
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            print(f"❌ Error opening video: {video_path}")
-            return
+        try:
+            while True:
+                # Check for new images
+                for filename in os.listdir(self.input_dir):
+                    if filename.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
+                        file_path = os.path.join(self.input_dir, filename)
 
-        # Get video properties
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        if file_path not in processed_files:
+                            print(f"📸 New image detected: {filename}")
+                            self.process_image(file_path)
+                            processed_files.add(file_path)
 
-        # Setup video writer if output path provided
-        if output_path:
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+                time.sleep(1)  # Check every 1 second
 
-        frame_count = 0
-        detected_plates = []
-        last_ocr_time = 0
-        ocr_interval = 1.0  # OCR setiap 1 detik
-        previous_plates = []
-
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            frame_count += 1
-            current_time = time.time()
-
-            # Process frames
-            plates = self.plate_detector.detect_plates(
-                frame, config.DETECTION_CONFIDENCE_THRESHOLD
-            )
-
-            for plate in plates:
-                plate["ocr_text"] = ""
-                plate["ocr_confidence"] = 0.0
-
-            # Perform OCR every 1 second for performance
-            if current_time - last_ocr_time >= ocr_interval:
-                plates_with_ocr = []
-                for plate in plates:
-                    plate_img = plate["image"]
-                    plate_text, ocr_conf = self.ocr_reader.read_text(plate_img)
-
-                    if plate_text:
-                        plate["ocr_text"] = plate_text
-                        plate["ocr_confidence"] = ocr_conf
-
-                        detected_plates.append(
-                            {
-                                "frame": frame_count,
-                                "text": plate_text,
-                                "ocr_confidence": ocr_conf,
-                                "detection_confidence": plate["confidence"],
-                            }
-                        )
-
-                        print(f"Frame {frame_count}: Plate '{plate_text}'")
-
-                    plates_with_ocr.append(plate)
-
-                previous_plates = plates_with_ocr
-                last_ocr_time = current_time
-            else:
-                # Gunakan hasil OCR sebelumnya
-                for i, current_plate in enumerate(plates):
-                    current_bbox = current_plate["bbox"]
-
-                    for prev_plate in previous_plates:
-                        prev_bbox = prev_plate["bbox"]
-
-                        if self._bboxes_similar(current_bbox, prev_bbox):
-                            current_plate["ocr_text"] = prev_plate.get("ocr_text", "")
-                            current_plate["ocr_confidence"] = prev_plate.get(
-                                "ocr_confidence", 0.0
-                            )
-                            break
-
-            # Draw detections on frame
-            frame_with_detections = self.draw_modern_bounding_boxes(frame, plates)
-
-            # Write frame to output video
-            if output_path:
-                out.write(frame_with_detections)
-
-            # Show preview (optional)
-            cv2.imshow("Video Processing - Press ESC to stop", frame_with_detections)
-            if cv2.waitKey(1) & 0xFF == 27:  # ESC key
-                break
-
-            if max_frames and frame_count >= max_frames:
-                break
-
-        cap.release()
-        if output_path:
-            out.release()
-            print(f"💾 Saved output video: {output_path}")
-
-        cv2.destroyAllWindows()
-
-        return detected_plates
-
-    def process_live_camera(self):
-        """
-        Process live camera feed for license plate recognition
-        """
-        print("📹 Starting live camera... Press ESC to quit")
-
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("❌ Error: Cannot open webcam")
-            return
-
-        # Set camera resolution
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-        frame_count = 0
-        last_ocr_time = 0
-        ocr_interval = 1.0  # OCR setiap 1 detik
-
-        # ✅ TAMBAHKAN: Variabel untuk menyimpan hasil OCR terakhir
-        previous_plates = []
-
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                print("❌ Error reading frame from camera")
-                break
-
-            frame_count += 1
-            current_time = time.time()
-
-            # Detect plates in every frame
-            plates = self.plate_detector.detect_plates(
-                frame, config.DETECTION_CONFIDENCE_THRESHOLD
-            )
-
-            # ✅ PERBAIKI: Gunakan hasil OCR sebelumnya sebagai default
-            for plate in plates:
-                plate["ocr_text"] = ""  # Default kosong
-                plate["ocr_confidence"] = 0.0
-
-            # Perform OCR every 1 second for performance
-            if current_time - last_ocr_time >= ocr_interval:
-                plates_with_ocr = []
-                for plate in plates:
-                    plate_img = plate["image"]
-                    plate_text, ocr_conf = self.ocr_reader.read_text(plate_img)
-
-                    if plate_text:
-                        plate["ocr_text"] = plate_text
-                        plate["ocr_confidence"] = ocr_conf
-                        print(f"Frame {frame_count}: Detected Plate '{plate_text}'")
-
-                    plates_with_ocr.append(plate)
-
-                # ✅ PERBAIKI: Simpan plates dengan OCR untuk frame berikutnya
-                previous_plates = plates_with_ocr
-                last_ocr_time = current_time
-            else:
-                # ✅ PERBAIKI: Gunakan hasil OCR dari frame sebelumnya
-                # Cari plate yang sesuai berdasarkan posisi bbox
-                for i, current_plate in enumerate(plates):
-                    current_bbox = current_plate["bbox"]
-
-                    # Cari plate dengan bbox yang mirip dari previous_plates
-                    for prev_plate in previous_plates:
-                        prev_bbox = prev_plate["bbox"]
-
-                        # Simple bbox matching berdasarkan overlap
-                        if self._bboxes_similar(current_bbox, prev_bbox):
-                            current_plate["ocr_text"] = prev_plate.get("ocr_text", "")
-                            current_plate["ocr_confidence"] = prev_plate.get(
-                                "ocr_confidence", 0.0
-                            )
-                            break
-
-            # Draw modern bounding boxes
-            frame_with_detections = self.draw_modern_bounding_boxes(frame, plates)
-
-            # Display frame
-            cv2.imshow("ALPR Live Camera - Press ESC to quit", frame_with_detections)
-
-            # Check for ESC key or window close
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27:  # ESC key
-                break
-            if (
-                cv2.getWindowProperty(
-                    "ALPR Live Camera - Press ESC to quit", cv2.WND_PROP_VISIBLE
-                )
-                < 1
-            ):
-                break
-
-        cap.release()
-        cv2.destroyAllWindows()
-        print("👋 Live camera stopped")
-
-
-def main():
-    """
-    Main function to run ALPR system with menu
-    """
-    try:
-        # Initialize system
-        alpr = ALPRSystem()
-
-        while True:
-            print("\n" + "=" * 50)
-            print("🚀 ALPR SYSTEM - MAIN MENU")
-            print("=" * 50)
-            print("1. 📷 Process Image")
-            print("2. 🎥 Process Video")
-            print("3. 📹 Live Camera")
-            print("0. ❌ Exit")
-            print("-" * 50)
-
-            choice = input("Select option (0-3): ").strip()
-
-            if choice == "0":
-                print("👋 Thank you for using ALPR System!")
-                break
-
-            elif choice == "1":
-                # Image processing
-                image_path = input(
-                    "Enter image path (or press Enter for default 'images/gwalk.jpg'): "
-                ).strip()
-                if not image_path:
-                    image_path = "images/gwalk.jpg"
-
-                if os.path.exists(image_path):
-                    results = alpr.process_image(image_path)
-                    if results:
-                        print("\n📊 Results:")
-                        for result in results:
-                            print(
-                                f"   Plate: {result['text']} "
-                                f"(Detection: {result['detection_confidence']:.2f}, "
-                                f"OCR: {result['ocr_confidence']:.2f})"
-                            )
-                else:
-                    print(f"❌ Image not found: {image_path}")
-                    print("💡 Please check the file path and try again")
-
-            elif choice == "2":
-                # Video processing
-                video_path = input("Enter video path: ").strip()
-                if not video_path:
-                    print("❌ Please enter a valid video path")
-                    continue
-
-                if os.path.exists(video_path):
-                    output_path = os.path.join(
-                        config.OUTPUT_DIR, f"processed_{os.path.basename(video_path)}"
-                    )
-                    results = alpr.process_video(video_path, output_path)
-                    if results:
-                        print(f"\n📊 Processed {len(results)} plates in video")
-                else:
-                    print(f"❌ Video not found: {video_path}")
-
-            elif choice == "3":
-                # Live camera
-                print("🎥 Starting live camera detection...")
-                alpr.process_live_camera()
-
-            else:
-                print("❌ Invalid option! Please enter 0, 1, 2, or 3")
-
-            # Small pause before showing menu again
-            input("\nPress Enter to continue...")
-
-    except Exception as e:
-        print(f"❌ Program error: {e}")
-        print("💡 Check if all dependencies are installed and models are available")
+        except KeyboardInterrupt:
+            print("\nALPR Stopped")
 
 
 if __name__ == "__main__":
-    main()
+    alpr_system = ALPRSystem()
+    alpr_system.monitor_input_folder()
