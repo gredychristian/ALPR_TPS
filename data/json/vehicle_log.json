@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2025-12-12 14:26:40",
+    "plate_number": "L8858UB",
+    "output_image": "data\\output\\1_processed.png",
+    "plate_image": "data\\output\\1_plate.png",
+    "plat_detected": true,
+    "char_detected": true,
+    "status": "success"
+  }
+]
